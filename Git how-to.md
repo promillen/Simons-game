@@ -7,7 +7,7 @@ https://githowto.com
 
 ## Klassisk Git procedure
 ```
-git pull - *hent den nyeste version af den branch du står på*
+git pull - * hent den nyeste version af den branch du står på *
 git status - *se status*
 git add -A - *tilføj alle filer til et commit (udelades A, kan specifikke filer vælges fra)*
 git commit -m "tilføj besked om, hvad der sker i dette commit"
