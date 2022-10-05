@@ -49,7 +49,6 @@ void setup() {
 
   lcd.clear();
   
-
   chooseGamemode();
   Serial.println(gamemode);
 
@@ -60,7 +59,7 @@ void setup() {
     lcd.setCursor(0,0);
     lcd.print("This gamemode");
     lcd.setCursor(0,1);
-    lcd.print("isn't implemented");
+    lcd.print("isn't completed");
     delay(2000);
     ESP.restart();
   }
@@ -68,9 +67,6 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  int pinValue = digitalRead(2);
-  Serial.println(pinValue);
-  delay(2500);
 }
 
 void chooseGamemode() {
@@ -80,16 +76,16 @@ void chooseGamemode() {
   lcd.setCursor(0,1);
   lcd.print("Single player");
   
-  unsigned long holdingButton = 0;
+  unsigned long holdingButton = millis();
   
   while(true) {
     delay(20);
-    buttonState = digitalRead(selectorButton);
+    
     if(lastButtonState == false && millis() >= (holdingButton + 1000)){
       Serial.println("Button was hold for more than 1 seconds");
       break;
     }
-    
+    buttonState = digitalRead(selectorButton);
     if(lastButtonState != buttonState) {
       lastButtonState = buttonState;
       if(lastButtonState == false) {
@@ -125,47 +121,61 @@ void setupSingleplayer() {
   Serial.println("setupSinglePlayer called");
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Choose diffi-");
+  lcd.print("Choose level:");
   lcd.setCursor(0,1);
-  lcd.print("culty: easy");
+  lcd.print("Easy");
+  delay(500);
 
-  unsigned long holdingButton = 0;
+  unsigned long holdingButton = millis();
 
   while(true) {
     delay(20);
-    buttonState = digitalRead(selectorButton);
     if(lastButtonState == false && millis() >= (holdingButton + 1000)){
       Serial.println("Button was hold for more than 1 seconds");
       break;
     }
-    
+    buttonState = digitalRead(selectorButton);
+
     if(lastButtonState != buttonState) {
       lastButtonState = buttonState;
       if(lastButtonState == false) {
         Serial.println("Button pressed");
         holdingButton = millis();
+        gamemode++;
       }
       if(lastButtonState == true) {
         Serial.println("Button released");
         difficulty++;
         if(gamemode % 4 == 0) {
-          lcd.setCursor(8,1);
-          lcd.print("easy");
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Choose level:");
+          lcd.setCursor(0,1);
+          lcd.print("Easy");
         }
         
         if(gamemode % 4 == 1) {
-          lcd.setCursor(8,1);
-          lcd.print("normal");
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Choose level:");
+          lcd.setCursor(0,1);
+          lcd.print("Normal");
         }
         
         if(gamemode % 4 == 2) {
-          lcd.setCursor(8,1);
-          lcd.print("hard");
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Choose level:");
+          lcd.setCursor(0,1);
+          lcd.print("Hard");
         }
 
         if(gamemode % 4 == 3) {
-          lcd.setCursor(8,1);
-          lcd.print("extreme");
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Choose level:");
+          lcd.setCursor(0,1);
+          lcd.print("Extreme");
         }
       }
     }
