@@ -1,8 +1,8 @@
 //#include <LiquidCrystal_I2C.h> // I2C address: 0x27
 
 // set the LCD number of columns and rows
-int lcdColumns = 16;
-int lcdRows = 2;
+/*int lcdColumns = 16;
+int lcdRows = 2;*/
 
 // set LCD address, number of columns and rows
 // if you don't know your display address, run an I2C scanner sketch
@@ -32,17 +32,19 @@ int skillLevel[] = {8, 14, 20, 31};
 int levels[31];
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(redLed, OUTPUT);
   pinMode(yellowLed, OUTPUT);
   pinMode(greenLed, OUTPUT);
   pinMode(blueLed, OUTPUT);
   
-  //Initialize array
-  for(int i = 0; i<sizeof(levels)/2; i++) {
-    levels[i] = -1;
-  }
+}
 
+void loop() {
+  // put your main code here, to run repeatedly:
+  //Initialize array
+  resetLevels();
+  serialFlush();
   Serial.println("Choose gamemode");
   while(Serial.available() == 0) {
   }
@@ -50,7 +52,8 @@ void setup() {
   Serial.print("Gamemode ");
   
   Serial.print(gamemode);
-  Serial.println(" choosen");
+  Serial.println(" chosen");
+  delay(250);
   
   if(gamemode == 49) { //ASCII character for 1
     setupGamemode1();
@@ -61,26 +64,22 @@ void setup() {
   } else {
     return;
   }
-}
 
-void loop() {
-  // put your main code here, to run repeatedly:
+  runLevels();
+  
 }
 
 void setupGamemode1() {
   Serial.println("Choose difficulty");
-  delay(1000);
   serialFlush();
 
-  
   while(Serial.available() == 0) {
   }
   int difficulty = Serial.read();
-
+  delay(250);
   if(difficulty == 49) {
     Serial.print("You have choosen difficulty: ");
     Serial.println(1);
-    delay(1000);
     generateLevels(1);
     
   } else if(difficulty == 50) {
@@ -98,47 +97,62 @@ void setupGamemode1() {
     Serial.println(difficulty);
     generateLevels(4);
   }
-
-
-for (int i = 0; i < skillLevel[difficulty-49]; i++) {
-  if (levels[i] == 1) {
-    digitalWrite(redLed, HIGH);
-    delay(500);
-    digitalWrite(redLed, LOW);
-    delay(500);
-  } else if (levels[i] == 2) {
-    digitalWrite(yellowLed, HIGH);
-    delay(500);
-    digitalWrite(yellowLed, LOW);
-    delay(500);
-  } else if (levels[i] == 3) {
-    digitalWrite(greenLed, HIGH);
-    delay(500);
-    digitalWrite(greenLed, LOW);
-    delay(500);
-  } else if (levels[i] == 4) {
-    digitalWrite(blueLed, HIGH);
-    delay(500);
-    digitalWrite(blueLed, LOW);
-    delay(500);
-  } else if (levels[i] == -1) {
-    break;
-  }
 }
-  
+
+void resetLevels() {
+    for(int i = 0; i<31; i++) {
+    if (levels[i] == -1) {
+      break;
+    } else {
+    levels[i] = -1;
+    }
+  }
 }
 
 void generateLevels(int x) {
   for(int i = 0; i<skillLevel[x-1]; i++) {
-    levels[i] = random(0,3);
-    Serial.print(levels[i]);
+    levels[i] = random(1,5);
+    //Serial.print(levels[i]);
   }
-  Serial.println();
+  //Serial.println();
   for(int i = 0; i<31; i++) {
     Serial.print(levels[i]);
     Serial.print(", ");
   }
-  delay(1000);
+  Serial.println();
+}
+
+void runLevels() {
+    for (int i = 0; i < 31; i++) {
+    if (levels[i] == 1) {
+      Serial.println("rød");
+      digitalWrite(redLed, HIGH);
+      delay(500);
+      digitalWrite(redLed, LOW);
+      delay(500);
+    } else if (levels[i] == 2) {
+      Serial.println("gul");
+      digitalWrite(yellowLed, HIGH);
+      delay(500);
+      digitalWrite(yellowLed, LOW);
+      delay(500);
+    } else if (levels[i] == 3) {
+      Serial.println("grøn");
+      digitalWrite(greenLed, HIGH);
+      delay(500);
+      digitalWrite(greenLed, LOW);
+      delay(500);
+    } else if (levels[i] == 4) {
+      Serial.println("blå");
+      digitalWrite(blueLed, HIGH);
+      delay(500);
+      digitalWrite(blueLed, LOW);
+      delay(500);
+    } else if (levels[i] == -1) {
+      Serial.println("done");
+      break;
+    }
+  }
 }
 
 void serialFlush(){
