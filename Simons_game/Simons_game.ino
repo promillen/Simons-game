@@ -33,6 +33,7 @@ int skillLevel[] = {8, 14, 20, 31};
 int levels[31];
 boolean buttonState;
 boolean lastButtonState = true; //Starts high
+boolean buttonStillBeingHeld = false;
 
 void setup() {
   pinMode(selectorButton, INPUT_PULLUP);
@@ -50,7 +51,6 @@ void setup() {
   lcd.clear();
   
   chooseGamemode();
-  Serial.println(gamemode);
 
   if(gamemode % 3 == 0) {
     setupSingleplayer();
@@ -67,6 +67,9 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
+  lcd.clear();
+  Serial.print(".");
+  delay(20);
 }
 
 void chooseGamemode() {
@@ -83,6 +86,7 @@ void chooseGamemode() {
     
     if(lastButtonState == false && millis() >= (holdingButton + 1000)){
       Serial.println("Button was hold for more than 1 seconds");
+      buttonStillBeingHeld = true;
       break;
     }
     buttonState = digitalRead(selectorButton);
@@ -124,13 +128,19 @@ void setupSingleplayer() {
   lcd.print("Choose level:");
   lcd.setCursor(0,1);
   lcd.print("Easy");
-  delay(500);
+
+  while(buttonStillBeingHeld == true && buttonState == false) {
+    buttonState = digitalRead(selectorButton);
+    delay(20);
+  }
+
+  buttonStillBeingHeld = false;
 
   unsigned long holdingButton = millis();
 
   while(true) {
     delay(20);
-    if(lastButtonState == false && millis() >= (holdingButton + 1000)){
+    if(lastButtonState == false && millis() >= (holdingButton + 1000)){ //might not work
       Serial.println("Button was hold for more than 1 seconds");
       break;
     }
