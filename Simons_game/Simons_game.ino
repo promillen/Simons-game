@@ -9,26 +9,25 @@ int lcdRows = 2;
 LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);
 
 //Pin constants
-/*const int redLed = x;
-const int greenLed = x;
-const int blueLed = x;
-const int yellowLed = x;
+const int redLed = D5;
+const int yellowLed = D6;
+const int greenLed = D7;
+const int blueLed = D8;
 
+/*
 const int redLedButton = x;
 const int greenLedButton = x;
 const int blueLedButton = x;
 const int yellowLedButton = x;
 
-
-
 const int buzzer = x;
 */
-const int selectorButton = D3;
 
+const int selectorButton = D3;
 
 //Other variables
 int gamemode = 0;
-int difficulty = 0;
+int difficulty = -1;
 int skillLevel[] = {8, 14, 20, 31};
 int levels[31];
 boolean buttonState;
@@ -37,23 +36,26 @@ boolean buttonStillBeingHeld = false;
 
 void setup() {
   pinMode(selectorButton, INPUT_PULLUP);
+  pinMode(redLed, OUTPUT);
+  pinMode(yellowLed, OUTPUT);
+  pinMode(greenLed, OUTPUT);
+  pinMode(blueLed, OUTPUT);
+
   Serial.begin(9600);
+
   lcd.init();
   lcd.backlight();
-  lcd.setCursor(0,0);
-  lcd.print("Initializing");
   
   //Initialize levels array
   for(int i = 0; i<31; i++) {
     levels[i] = -1;
   }
-
-  lcd.clear();
   
   chooseGamemode();
 
   if(gamemode % 3 == 0) {
     setupSingleplayer();
+    generateLevels(difficulty);
   } else {
     lcd.clear();
     lcd.setCursor(0,0);
@@ -66,10 +68,10 @@ void setup() {
 }
 
 void loop() {
+  Serial.println("Loop called");
   // put your main code here, to run repeatedly:
   lcd.clear();
-  Serial.print(".");
-  delay(20);
+  runLevels();
 }
 
 void chooseGamemode() {
@@ -99,6 +101,7 @@ void chooseGamemode() {
       if(lastButtonState == true) {
         Serial.println("Button released");
         gamemode++;
+        
         if(gamemode % 3 == 0) {
           lcd.setCursor(0,1);
           lcd.print("Single player");
@@ -118,9 +121,6 @@ void chooseGamemode() {
   }
 }
 
-
-
-
 void setupSingleplayer() {
   Serial.println("setupSinglePlayer called");
   lcd.clear();
@@ -128,7 +128,7 @@ void setupSingleplayer() {
   lcd.print("Choose level:");
   lcd.setCursor(0,1);
   lcd.print("Easy");
-
+  
   while(buttonStillBeingHeld == true && buttonState == false) {
     buttonState = digitalRead(selectorButton);
     delay(20);
@@ -141,6 +141,7 @@ void setupSingleplayer() {
   while(true) {
     delay(20);
     if(lastButtonState == false && millis() >= (holdingButton + 1000)){ //might not work
+      difficulty = difficulty % 4;
       Serial.println("Button was hold for more than 1 seconds");
       break;
     }
@@ -151,12 +152,12 @@ void setupSingleplayer() {
       if(lastButtonState == false) {
         Serial.println("Button pressed");
         holdingButton = millis();
-        gamemode++;
       }
       if(lastButtonState == true) {
         Serial.println("Button released");
         difficulty++;
-        if(gamemode % 4 == 0) {
+        
+        if(difficulty % 4 == 0) {
           lcd.clear();
           lcd.setCursor(0,0);
           lcd.print("Choose level:");
@@ -164,7 +165,7 @@ void setupSingleplayer() {
           lcd.print("Easy");
         }
         
-        if(gamemode % 4 == 1) {
+        if(difficulty % 4 == 1) {
           lcd.clear();
           lcd.setCursor(0,0);
           lcd.print("Choose level:");
@@ -172,7 +173,7 @@ void setupSingleplayer() {
           lcd.print("Normal");
         }
         
-        if(gamemode % 4 == 2) {
+        if(difficulty % 4 == 2) {
           lcd.clear();
           lcd.setCursor(0,0);
           lcd.print("Choose level:");
@@ -180,7 +181,7 @@ void setupSingleplayer() {
           lcd.print("Hard");
         }
 
-        if(gamemode % 4 == 3) {
+        if(difficulty % 4 == 3) {
           lcd.clear();
           lcd.setCursor(0,0);
           lcd.print("Choose level:");
@@ -193,14 +194,78 @@ void setupSingleplayer() {
 }
 
 void generateLevels(int x) {
-  for(int i = 0; i<skillLevel[x-1]; i++) {
-    levels[i] = random(0,3);
-    Serial.print(levels[i]);
+  delay(500);
+  Serial.print("Called with: ");
+  Serial.println(x);
+
+  delay(500);
+  Serial.print("skillLevel[x] = ");
+  Serial.println(skillLevel[x]);
+
+  delay(500);
+  //Serial.print();
+  //Serial.println();
+  
+  for(int i = 0; i<skillLevel[x]; i++) {
+    levels[i] = random(1,5);
   }
   Serial.println();
   for(int i = 0; i<31; i++) {
     Serial.print(levels[i]);
     Serial.print(", ");
   }
+  Serial.println();
   delay(1000);
+}
+
+void runLevels() {
+  Serial.print("Run levels called");
+    for (int i = 0; i < 31; i++) {
+    if (levels[i] == 1) {
+      Serial.println("rød");
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Red");
+      
+      digitalWrite(redLed, HIGH);
+      delay(500);
+      digitalWrite(redLed, LOW);
+      delay(500);
+    } else if (levels[i] == 2) {
+      Serial.println("gul");
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Yellow");
+      
+      digitalWrite(yellowLed, HIGH);
+      delay(500);
+      digitalWrite(yellowLed, LOW);
+      delay(500);
+    } else if (levels[i] == 3) {
+      Serial.println("grøn");
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Green");
+      digitalWrite(greenLed, HIGH);
+      delay(500);
+      digitalWrite(greenLed, LOW);
+      delay(500);
+    } else if (levels[i] == 4) {
+      Serial.println("blå");
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Blue");
+      digitalWrite(blueLed, HIGH);
+      delay(500);
+      digitalWrite(blueLed, LOW);
+      delay(500);
+    } else if (levels[i] == -1) {
+      Serial.println("done");
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Done");
+      delay(1000);
+      ESP.restart();
+    }
+  }
 }
