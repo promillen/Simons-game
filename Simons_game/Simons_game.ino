@@ -1,4 +1,5 @@
 //Ide til spil. Implementer mulighed for at vælge tidsinterval mellem LED blink
+//Overvej at bruge dette library til knapper https://github.com/madleech/Button
 
 #include <LiquidCrystal_I2C.h> // I2C address: 0x27
 
