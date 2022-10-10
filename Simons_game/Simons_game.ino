@@ -1,3 +1,5 @@
+//Ide til spil. Implementer mulighed for at vælge tidsinterval mellem LED blink
+
 #include <LiquidCrystal_I2C.h> // I2C address: 0x27
 
 // set the LCD number of columns and rows
@@ -14,28 +16,47 @@ const int yellowLed = D6;
 const int greenLed = D7;
 const int blueLed = D8;
 
-/*
-const int redLedButton = x;
-const int greenLedButton = x;
-const int blueLedButton = x;
-const int yellowLedButton = x;
-
-const int buzzer = x;
-*/
+const int redLedButton = D4;
+const int yellowLedButton = D0;
+const int greenLedButton = 9;
+const int blueLedButton = 10;
 
 const int selectorButton = D3;
+
+/*
+const int buzzer = x;
+*/
 
 //Other variables
 int gamemode = 0;
 int difficulty = -1;
 int skillLevel[] = {8, 14, 20, 31};
 int levels[31];
-boolean buttonState;
-boolean lastButtonState = true; //Starts high
-boolean buttonStillBeingHeld = false;
+int buttonValue[] = {1, 2, 3, 4};
+int currentLength = 0;
+boolean gameIsComplete = false;
+
+//Buttons
+boolean buttonStateInputButton;
+boolean lastButtonStateInputButton = true; //Starts high
+boolean inputButtonStillBeingHeld = false;
+
+boolean buttonStateRedInput;
+boolean buttonStateYellowInput;
+boolean buttonStateGreenInput;
+boolean buttonStateBlueInput;
+boolean lastButtonStateRedInput = true;
+boolean lastButtonStateYellowInput = true;
+boolean lastButtonStateGreenInput = true;
+boolean lastButtonStateBlueInput = true;
 
 void setup() {
   pinMode(selectorButton, INPUT_PULLUP);
+  pinMode(redLedButton, INPUT);
+  pinMode(yellowLedButton, INPUT);
+  pinMode(greenLedButton, INPUT);
+  pinMode(blueLedButton, INPUT);
+  
   pinMode(redLed, OUTPUT);
   pinMode(yellowLed, OUTPUT);
   pinMode(greenLed, OUTPUT);
@@ -71,7 +92,11 @@ void loop() {
   Serial.println("Loop called");
   // put your main code here, to run repeatedly:
   lcd.clear();
-  runLevels();
+  if(!gameIsComplete) {
+    playGame();
+  } else {
+    restartGame(); 
+  }
 }
 
 void chooseGamemode() {
@@ -86,20 +111,17 @@ void chooseGamemode() {
   while(true) {
     delay(20);
     
-    if(lastButtonState == false && millis() >= (holdingButton + 1000)){
-      Serial.println("Button was hold for more than 1 seconds");
-      buttonStillBeingHeld = true;
+    if(lastButtonStateInputButton == false && millis() >= (holdingButton + 1000)){
+      inputButtonStillBeingHeld = true;
       break;
     }
-    buttonState = digitalRead(selectorButton);
-    if(lastButtonState != buttonState) {
-      lastButtonState = buttonState;
-      if(lastButtonState == false) {
-        Serial.println("Button pressed");
+    buttonStateInputButton = digitalRead(selectorButton);
+    if(lastButtonStateInputButton != buttonStateInputButton) {
+      lastButtonStateInputButton = buttonStateInputButton;
+      if(lastButtonStateInputButton == false) {
         holdingButton = millis();
       }
-      if(lastButtonState == true) {
-        Serial.println("Button released");
+      if(lastButtonStateInputButton == true) {
         gamemode++;
         
         if(gamemode % 3 == 0) {
@@ -129,32 +151,29 @@ void setupSingleplayer() {
   lcd.setCursor(0,1);
   lcd.print("Easy");
   
-  while(buttonStillBeingHeld == true && buttonState == false) {
-    buttonState = digitalRead(selectorButton);
+  while(inputButtonStillBeingHeld == true && buttonStateInputButton == false) {
+    buttonStateInputButton = digitalRead(selectorButton);
     delay(20);
   }
 
-  buttonStillBeingHeld = false;
+  inputButtonStillBeingHeld = false;
 
   unsigned long holdingButton = millis();
 
   while(true) {
     delay(20);
-    if(lastButtonState == false && millis() >= (holdingButton + 1000)){ //might not work
+    if(lastButtonStateInputButton == false && millis() >= (holdingButton + 1000)){ //might not work
       difficulty = difficulty % 4;
-      Serial.println("Button was hold for more than 1 seconds");
       break;
     }
-    buttonState = digitalRead(selectorButton);
+    buttonStateInputButton = digitalRead(selectorButton);
 
-    if(lastButtonState != buttonState) {
-      lastButtonState = buttonState;
-      if(lastButtonState == false) {
-        Serial.println("Button pressed");
+    if(lastButtonStateInputButton != buttonStateInputButton) {
+      lastButtonStateInputButton = buttonStateInputButton;
+      if(lastButtonStateInputButton == false) {
         holdingButton = millis();
       }
-      if(lastButtonState == true) {
-        Serial.println("Button released");
+      if(lastButtonStateInputButton == true) {
         difficulty++;
         
         if(difficulty % 4 == 0) {
@@ -194,17 +213,11 @@ void setupSingleplayer() {
 }
 
 void generateLevels(int x) {
-  delay(500);
   Serial.print("Called with: ");
   Serial.println(x);
 
-  delay(500);
   Serial.print("skillLevel[x] = ");
   Serial.println(skillLevel[x]);
-
-  delay(500);
-  //Serial.print();
-  //Serial.println();
   
   for(int i = 0; i<skillLevel[x]; i++) {
     levels[i] = random(1,5);
@@ -215,57 +228,304 @@ void generateLevels(int x) {
     Serial.print(", ");
   }
   Serial.println();
-  delay(1000);
 }
 
-void runLevels() {
-  Serial.print("Run levels called");
-    for (int i = 0; i < 31; i++) {
-    if (levels[i] == 1) {
-      Serial.println("rød");
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Red");
-      
-      digitalWrite(redLed, HIGH);
-      delay(500);
-      digitalWrite(redLed, LOW);
-      delay(500);
-    } else if (levels[i] == 2) {
-      Serial.println("gul");
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Yellow");
-      
-      digitalWrite(yellowLed, HIGH);
-      delay(500);
-      digitalWrite(yellowLed, LOW);
-      delay(500);
-    } else if (levels[i] == 3) {
-      Serial.println("grøn");
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Green");
-      digitalWrite(greenLed, HIGH);
-      delay(500);
-      digitalWrite(greenLed, LOW);
-      delay(500);
-    } else if (levels[i] == 4) {
-      Serial.println("blå");
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Blue");
-      digitalWrite(blueLed, HIGH);
-      delay(500);
-      digitalWrite(blueLed, LOW);
-      delay(500);
-    } else if (levels[i] == -1) {
-      Serial.println("done");
-      lcd.clear();
-      lcd.setCursor(0,0);
-      lcd.print("Done");
-      delay(1000);
-      ESP.restart();
+void restartGame() {
+  boolean restartOrSetup = false;
+
+  while(inputButtonStillBeingHeld == true && buttonStateInputButton == false) {
+    buttonStateInputButton = digitalRead(selectorButton);
+    delay(20);
+  }
+
+  inputButtonStillBeingHeld = false;
+
+  unsigned long holdingButton = millis();
+
+  while(true) {
+    delay(20);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Now do?");
+    lcd.setCursor(0,1);
+    if(restartOrSetup) {
+      lcd.print("restart");
+      delay(50);
+    } else {
+      lcd.print("setup");
+      delay(50);
+    }
+    
+    if(lastButtonStateInputButton == false && millis() >= (holdingButton + 1000)){ //might not work
+      if(restartOrSetup) {
+        ESP.restart();
+      } else {
+        lcd.clear();
+        lcd.setCursor(0,0);
+        lcd.print("Not implemented");
+        lcd.setCursor(0,1);
+        lcd.print("yet");
+        delay(1000);
+        ESP.restart();
+      }
+      break;
+    }
+    buttonStateInputButton = digitalRead(selectorButton);
+
+    if(lastButtonStateInputButton != buttonStateInputButton) {
+      lastButtonStateInputButton = buttonStateInputButton;
+      if(lastButtonStateInputButton == false) {
+        holdingButton = millis();
+      }
+      if(lastButtonStateInputButton == true) {
+        restartOrSetup = !restartOrSetup;
+      }
     }
   }
 }
+
+void playGame() {
+  currentLength = 0;
+  Serial.println("Play game called");
+  Serial.print("Choosen difficulty: ");
+  Serial.println(skillLevel[difficulty]);
+  
+  for(int i = 0; i < skillLevel[difficulty]; i++) {
+    Serial.print("currentLength = ");
+    Serial.println(currentLength);
+    delay(1000);
+    for(int h = 0; h <= currentLength; h++) {
+      Serial.print("Calling LED switch with: ");
+      Serial.println(levels[h]);
+      delay(100);
+
+      switch(levels[h]) {
+        case 1:
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Red");
+          digitalWrite(redLed, HIGH);
+          delay(250);
+          digitalWrite(redLed, LOW);
+          delay(250);
+          Serial.println("Lighting on red LED");
+          break;
+        case 2:
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Yellow");
+          digitalWrite(yellowLed, HIGH);
+          delay(250);
+          digitalWrite(yellowLed, LOW);
+          delay(250);
+          Serial.println("Lighting on yellow LED");
+          break;
+        case 3:
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Green");
+          digitalWrite(greenLed, HIGH);
+          delay(250);
+          digitalWrite(greenLed, LOW);
+          delay(250);
+          Serial.println("Lighting on green LED");
+          break;
+        case 4:
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Blue");
+          digitalWrite(blueLed, HIGH);
+          delay(250);
+          digitalWrite(blueLed, LOW);
+          delay(250);
+          Serial.println("Lighting on blue LED");
+          break;
+        default:
+          Serial.println("done");
+          lcd.clear();
+          lcd.setCursor(0,0);
+          lcd.print("Done");
+          delay(1000);
+      }
+    }  
+    Serial.println("Increasing currentLenght by 1. Going for next color");
+    Serial.println("Increasing before check for easibility");
+    Serial.println();
+    currentLength++;
+    Serial.println("Going into guess logic");
+
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Press the colors,");
+    lcd.setCursor(0,1);
+    lcd.print("in correct order");
+
+    delay(1000);
+
+    Serial.print("Number of guesses: ");
+    Serial.println(currentLength);
+    Serial.println();
+
+    Serial.print("Making array guesses with size: ");
+    Serial.println(skillLevel[difficulty]);
+
+    int guesses[skillLevel[difficulty]];
+    for(int w = 0; w < skillLevel[difficulty]; w++) {
+      guesses[w] = 0;
+    }
+    
+    
+    for(int w = 0; w < currentLength; w++) {
+      Serial.print("Input ");
+      Serial.print(w + 1);
+      Serial.println();
+
+      guesses[w] = gettingInputFromColorButtons();
+
+      Serial.print("Guesses array: ");
+      for(int w = 0; w < currentLength; w++) {
+        Serial.print(guesses[w]);
+        Serial.print(", ");
+      }
+
+      Serial.println();
+      Serial.println();
+      delay(200); //Shold probably be deleted in final version
+    }
+
+    Serial.println("Comparing guess to actual sequence");
+    for(int t = 0; t < currentLength; t++) {
+      if(guesses[t] == levels[t]) {
+        Serial.print("Guess ");
+        Serial.print(t +1);
+        Serial.println(" correct");
+      } else {
+        Serial.print("Guess ");
+        Serial.print(t +1);
+        Serial.println(" wasn't correct");
+        restartGame();
+      }
+    }
+  }
+
+  Serial.println("Game is complete");
+  gameIsComplete = true;
+}
+
+int gettingInputFromColorButtons() {
+  while(true) {
+    delay(20);
+    buttonStateRedInput = digitalRead(redLedButton);
+    buttonStateYellowInput = digitalRead(yellowLedButton);
+    buttonStateGreenInput = digitalRead(greenLedButton);
+    buttonStateBlueInput = digitalRead(blueLedButton);
+  
+    if(lastButtonStateRedInput != buttonStateRedInput) {
+      lastButtonStateRedInput = buttonStateRedInput;
+  
+      lastButtonStateRedInput = buttonStateRedInput;
+    
+      if(lastButtonStateRedInput == false) {
+        Serial.println("Red input button pushed");
+      }
+      if(lastButtonStateRedInput == true) {
+        return 1;
+      }
+  
+    } else if(lastButtonStateYellowInput != buttonStateYellowInput) {
+      lastButtonStateYellowInput = buttonStateYellowInput;
+      
+      if(lastButtonStateYellowInput == false) {
+       Serial.println("Yellow input button pushed");
+      }
+      if(lastButtonStateYellowInput == true) {
+        return 2;
+      }
+  
+    } else if(lastButtonStateGreenInput != buttonStateGreenInput) {
+      lastButtonStateGreenInput = buttonStateGreenInput;
+      
+      if(lastButtonStateGreenInput == false) {
+       Serial.println("Green input button pushed");
+      }
+      if(lastButtonStateGreenInput == true) {
+        return 3;
+      }
+  
+    } else if(lastButtonStateBlueInput != buttonStateBlueInput) {
+      lastButtonStateBlueInput = buttonStateBlueInput;
+      if(lastButtonStateBlueInput == false) {
+       Serial.println("Blue input button pushed");
+      }
+      if(lastButtonStateBlueInput == true) {
+        return 4;
+      }
+    }
+  }
+}
+
+/*
+
+int readColorButtons() {
+  Serial.println("readColorButtons method called");
+
+  while(true) {
+    
+  }
+  
+  while(buttonStateRedInput && buttonStateYellowInput && buttonStateGreenInput && buttonStateBlueInput) {
+    buttonStateRedInput = digitalRead(redLedButton);
+    buttonStateYellowInput = digitalRead(yellowLedButton);
+    buttonStateGreenInput = digitalRead(greenLedButton);
+    buttonStateBlueInput = digitalRead(blueLedButton);
+    delay(20);
+  }
+  delay(100);
+
+  if(!buttonStateRedInput) {
+    Serial.print("Returning 1 - ");
+    Serial.println("Red button pushed");
+    return 1; 
+  } else if(!buttonStateYellowInput) {
+    Serial.println("Returning 2");
+    Serial.println("Yellow button pushed");
+    return 2;
+  } else if(!buttonStateGreenInput) {
+    Serial.println("Returning 3");
+    Serial.println("Green button pushed");
+    return 3;
+  } else if(!buttonStateBlueInput) {
+    Serial.println("Returning 4");
+    Serial.println("Blue button pushed");
+    return 4;
+  }
+}
+*/
+
+/*
+
+      for(int g; g < currentLength; g++) {
+        int currentButtonPressed = 0;
+        
+        while(digitalRead(redLedButton) && digitalRead(yellowLedButton) && digitalRead(greenLedButton) && digitalRead(blueLedButton)) {
+          delay(5);
+        }
+        if(digitalRead(redLedButton)) {
+          currentButtonPressed = 1;
+        } else if(digitalRead(yellowLedButton)) {
+          currentButtonPressed = 2;
+        } else if(digitalRead(greenLedButton)) {
+          currentButtonPressed = 3;
+        } else if(digitalRead(blueLedButton)) {
+          currentButtonPressed = 4;
+        }
+
+        if(currentButtonPressed != levels[g]) {
+          Serial.println("Wrong button pressed");
+          return;
+        }
+      }
+      currentLength++;
+  }
+}
+*/
