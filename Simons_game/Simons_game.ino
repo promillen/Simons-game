@@ -1,7 +1,11 @@
+#include <AnalogButtons.h>
+
 //Ide til spil. Implementer mulighed for at vælge tidsinterval mellem LED blink
 //Overvej at bruge dette library til knapper https://github.com/madleech/Button
 
 #include <LiquidCrystal_I2C.h> // I2C address: 0x27
+
+#define ANALOG_PIN A0
 
 // set the LCD number of columns and rows
 int lcdColumns = 16;
@@ -17,16 +21,13 @@ const int yellowLed = D6;
 const int greenLed = D7;
 const int blueLed = D8;
 
-const int redLedButton = D4;
-const int yellowLedButton = D0;
-const int greenLedButton = 9;
-const int blueLedButton = 10;
+AnalogButtons analogButtons(ANALOG_PIN, INPUT);
+Button b1 = Button(1024, &b1Click);
+Button b2 = Button(996, &b2Click);
+Button b3 = Button(896, &b3Click);
+Button b4 = Button(744, &b4Click);
 
 const int selectorButton = D3;
-
-/*
-const int buzzer = x;
-*/
 
 //Other variables
 int gamemode = 0;
@@ -51,12 +52,37 @@ boolean lastButtonStateYellowInput = true;
 boolean lastButtonStateGreenInput = true;
 boolean lastButtonStateBlueInput = true;
 
+int colorButtonPressed = 0;
+
+// A call back function that you pass into the constructor of AnalogButtons, see example
+// below. Alternativly you could extend the Button class and re-define the methods pressed() 
+// or held() which are called 
+void b1Click() {  
+  colorButtonPressed = 4;
+  Serial.print("button blue clicked"); 
+}
+void b2Click() {  
+  colorButtonPressed = 3;
+  Serial.print("button green clicked"); 
+}
+
+void b3Click() {  
+  colorButtonPressed = 2;
+  Serial.print("button yellow clicked"); 
+}
+
+void b4Click() {  
+  colorButtonPressed = 1;
+  Serial.print("button red clicked"); 
+}
+
 void setup() {
   pinMode(selectorButton, INPUT_PULLUP);
-  pinMode(redLedButton, INPUT);
-  pinMode(yellowLedButton, INPUT);
-  pinMode(greenLedButton, INPUT);
-  pinMode(blueLedButton, INPUT);
+
+  analogButtons.add(b1);
+  analogButtons.add(b2);
+  analogButtons.add(b3);
+  analogButtons.add(b4); 
   
   pinMode(redLed, OUTPUT);
   pinMode(yellowLed, OUTPUT);
@@ -294,7 +320,7 @@ void playGame() {
   for(int i = 0; i < skillLevel[difficulty]; i++) {
     Serial.print("currentLength = ");
     Serial.println(currentLength);
-    delay(1000);
+
     for(int h = 0; h <= currentLength; h++) {
       Serial.print("Calling LED switch with: ");
       Serial.println(levels[h]);
@@ -353,6 +379,7 @@ void playGame() {
     Serial.println("Increasing before check for easibility");
     Serial.println();
     currentLength++;
+    
     Serial.println("Going into guess logic");
 
     lcd.clear();
@@ -375,23 +402,19 @@ void playGame() {
       guesses[w] = 0;
     }
     
-    
     for(int w = 0; w < currentLength; w++) {
       Serial.print("Input ");
       Serial.print(w + 1);
       Serial.println();
 
       guesses[w] = gettingInputFromColorButtons();
+      colorButtonPressed = 0;
 
       Serial.print("Guesses array: ");
       for(int w = 0; w < currentLength; w++) {
         Serial.print(guesses[w]);
         Serial.print(", ");
       }
-
-      Serial.println();
-      Serial.println();
-      delay(200); //Shold probably be deleted in final version
     }
 
     Serial.println("Comparing guess to actual sequence");
@@ -414,119 +437,12 @@ void playGame() {
 }
 
 int gettingInputFromColorButtons() {
-  while(true) {
-    delay(20);
-    buttonStateRedInput = digitalRead(redLedButton);
-    buttonStateYellowInput = digitalRead(yellowLedButton);
-    buttonStateGreenInput = digitalRead(greenLedButton);
-    buttonStateBlueInput = digitalRead(blueLedButton);
-  
-    if(lastButtonStateRedInput != buttonStateRedInput) {
-      lastButtonStateRedInput = buttonStateRedInput;
-  
-      lastButtonStateRedInput = buttonStateRedInput;
-    
-      if(lastButtonStateRedInput == false) {
-        Serial.println("Red input button pushed");
-      }
-      if(lastButtonStateRedInput == true) {
-        return 1;
-      }
-  
-    } else if(lastButtonStateYellowInput != buttonStateYellowInput) {
-      lastButtonStateYellowInput = buttonStateYellowInput;
-      
-      if(lastButtonStateYellowInput == false) {
-       Serial.println("Yellow input button pushed");
-      }
-      if(lastButtonStateYellowInput == true) {
-        return 2;
-      }
-  
-    } else if(lastButtonStateGreenInput != buttonStateGreenInput) {
-      lastButtonStateGreenInput = buttonStateGreenInput;
-      
-      if(lastButtonStateGreenInput == false) {
-       Serial.println("Green input button pushed");
-      }
-      if(lastButtonStateGreenInput == true) {
-        return 3;
-      }
-  
-    } else if(lastButtonStateBlueInput != buttonStateBlueInput) {
-      lastButtonStateBlueInput = buttonStateBlueInput;
-      if(lastButtonStateBlueInput == false) {
-       Serial.println("Blue input button pushed");
-      }
-      if(lastButtonStateBlueInput == true) {
-        return 4;
-      }
+  Serial.println("Calling analog button check");
+  while(colorButtonPressed == 0) {
+    delay(5);
+    analogButtons.check();
+    if(colorButtonPressed != 0) {
+      return colorButtonPressed;
     }
   }
 }
-
-/*
-
-int readColorButtons() {
-  Serial.println("readColorButtons method called");
-
-  while(true) {
-    
-  }
-  
-  while(buttonStateRedInput && buttonStateYellowInput && buttonStateGreenInput && buttonStateBlueInput) {
-    buttonStateRedInput = digitalRead(redLedButton);
-    buttonStateYellowInput = digitalRead(yellowLedButton);
-    buttonStateGreenInput = digitalRead(greenLedButton);
-    buttonStateBlueInput = digitalRead(blueLedButton);
-    delay(20);
-  }
-  delay(100);
-
-  if(!buttonStateRedInput) {
-    Serial.print("Returning 1 - ");
-    Serial.println("Red button pushed");
-    return 1; 
-  } else if(!buttonStateYellowInput) {
-    Serial.println("Returning 2");
-    Serial.println("Yellow button pushed");
-    return 2;
-  } else if(!buttonStateGreenInput) {
-    Serial.println("Returning 3");
-    Serial.println("Green button pushed");
-    return 3;
-  } else if(!buttonStateBlueInput) {
-    Serial.println("Returning 4");
-    Serial.println("Blue button pushed");
-    return 4;
-  }
-}
-*/
-
-/*
-
-      for(int g; g < currentLength; g++) {
-        int currentButtonPressed = 0;
-        
-        while(digitalRead(redLedButton) && digitalRead(yellowLedButton) && digitalRead(greenLedButton) && digitalRead(blueLedButton)) {
-          delay(5);
-        }
-        if(digitalRead(redLedButton)) {
-          currentButtonPressed = 1;
-        } else if(digitalRead(yellowLedButton)) {
-          currentButtonPressed = 2;
-        } else if(digitalRead(greenLedButton)) {
-          currentButtonPressed = 3;
-        } else if(digitalRead(blueLedButton)) {
-          currentButtonPressed = 4;
-        }
-
-        if(currentButtonPressed != levels[g]) {
-          Serial.println("Wrong button pressed");
-          return;
-        }
-      }
-      currentLength++;
-  }
-}
-*/
