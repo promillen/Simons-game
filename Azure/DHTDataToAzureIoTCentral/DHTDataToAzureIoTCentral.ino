@@ -71,7 +71,6 @@ float t = dht.readTemperature();
 
   
   if (isConnected) {
-
     unsigned long ms = millis();
     if (ms - lastTick > 10000) {  // send telemetry every 10 seconds
       char msg[64] = {0};
