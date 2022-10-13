@@ -1,20 +1,53 @@
+#include <AnalogButtons.h>
+
 //Ide til spil. Implementer mulighed for at vælge tidsinterval mellem LED blink
 //Overvej at bruge dette library til knapper https://github.com/madleech/Button
 
 #include <LiquidCrystal_I2C.h> // I2C address: 0x27
 
-// Libraries for IOT
+//Azure libraries
 #include <ESP8266WiFi.h>
 #include "src/iotc/common/string_buffer.h"
 #include "src/iotc/iotc.h"
 
-// Azure hook-up
+//Azure variables
 #define WIFI_SSID "HUAWEI P30 Pro"
 #define WIFI_PASSWORD "123456789"
 
 const char* SCOPE_ID = "0ne00779F00";
 const char* DEVICE_ID = "14hnv8l3ili";
 const char* DEVICE_KEY = "IpBH0ZGZ0K4xL4WrxCjexztBcKSJBtdGn0F2fh9hQLk=";
+
+//Azure functions (need to be before setup)
+void on_event(IOTContext ctx, IOTCallbackInfo* callbackInfo);
+#include "src/connection.h"
+
+void on_event(IOTContext ctx, IOTCallbackInfo* callbackInfo) {
+  // ConnectionStatus
+  if (strcmp(callbackInfo->eventName, "ConnectionStatus") == 0) {
+    LOG_VERBOSE("Is connected ? %s (%d)",
+                callbackInfo->statusCode == IOTC_CONNECTION_OK ? "YES" : "NO",
+                callbackInfo->statusCode);
+    isConnected = callbackInfo->statusCode == IOTC_CONNECTION_OK;
+    return;
+  }
+
+  // payload buffer doesn't have a null ending.
+  // add null ending in another buffer before print
+  AzureIOT::StringBuffer buffer;
+  if (callbackInfo->payloadLength > 0) {
+    buffer.initialize(callbackInfo->payload, callbackInfo->payloadLength);
+  }
+
+  LOG_VERBOSE("- [%s] event was received. Payload => %s\n",
+              callbackInfo->eventName, buffer.getLength() ? *buffer : "EMPTY");
+
+  if (strcmp(callbackInfo->eventName, "Command") == 0) {
+    LOG_VERBOSE("- Command name was => %s\r\n", callbackInfo->tag);
+  }
+}
+
+#define ANALOG_PIN A0
 
 // set the LCD number of columns and rows
 int lcdColumns = 16;
@@ -30,16 +63,13 @@ const int yellowLed = D6;
 const int greenLed = D7;
 const int blueLed = D8;
 
-const int redLedButton = D4;
-const int yellowLedButton = D0;
-const int greenLedButton = 9;
-const int blueLedButton = 10;
+AnalogButtons analogButtons(ANALOG_PIN, INPUT);
+Button b1 = Button(1024, &b1Click);
+Button b2 = Button(996, &b2Click);
+Button b3 = Button(896, &b3Click);
+Button b4 = Button(744, &b4Click);
 
 const int selectorButton = D3;
-
-/*
-const int buzzer = x;
-*/
 
 //Other variables
 int gamemode = 0;
@@ -64,12 +94,37 @@ boolean lastButtonStateYellowInput = true;
 boolean lastButtonStateGreenInput = true;
 boolean lastButtonStateBlueInput = true;
 
+int colorButtonPressed = 0;
+
+// A call back function that you pass into the constructor of AnalogButtons, see example
+// below. Alternativly you could extend the Button class and re-define the methods pressed() 
+// or held() which are called 
+void b1Click() {  
+  colorButtonPressed = 4;
+  Serial.print("button blue clicked"); 
+}
+void b2Click() {  
+  colorButtonPressed = 3;
+  Serial.print("button green clicked"); 
+}
+
+void b3Click() {  
+  colorButtonPressed = 2;
+  Serial.print("button yellow clicked"); 
+}
+
+void b4Click() {  
+  colorButtonPressed = 1;
+  Serial.print("button red clicked"); 
+}
+
 void setup() {
   pinMode(selectorButton, INPUT_PULLUP);
-  pinMode(redLedButton, INPUT);
-  pinMode(yellowLedButton, INPUT);
-  pinMode(greenLedButton, INPUT);
-  pinMode(blueLedButton, INPUT);
+
+  analogButtons.add(b1);
+  analogButtons.add(b2);
+  analogButtons.add(b3);
+  analogButtons.add(b4); 
   
   pinMode(redLed, OUTPUT);
   pinMode(yellowLed, OUTPUT);
@@ -78,13 +133,8 @@ void setup() {
 
   Serial.begin(9600);
 
-  // initialize connection
   connect_wifi(WIFI_SSID, WIFI_PASSWORD);
   connect_client(SCOPE_ID, DEVICE_ID, DEVICE_KEY);
-
-  if (context != NULL) {
-    lastTick = 0;  // set timer in the past to enable first telemetry a.s.a.p
-  }
 
   lcd.init();
   lcd.backlight();
@@ -315,7 +365,7 @@ void playGame() {
   for(int i = 0; i < skillLevel[difficulty]; i++) {
     Serial.print("currentLength = ");
     Serial.println(currentLength);
-    delay(1000);
+
     for(int h = 0; h <= currentLength; h++) {
       Serial.print("Calling LED switch with: ");
       Serial.println(levels[h]);
@@ -369,14 +419,14 @@ void playGame() {
           lcd.print("Done");
           delay(1000);
       }
-    } 
+    }  
     Serial.println("Increasing currentLenght by 1. Going for next color");
     Serial.println("Increasing before check for easibility");
     Serial.println();
     currentLength++;
+    toAzure();
+    
     Serial.println("Going into guess logic");
-
-    //
 
     lcd.clear();
     lcd.setCursor(0,0);
@@ -398,23 +448,19 @@ void playGame() {
       guesses[w] = 0;
     }
     
-    
     for(int w = 0; w < currentLength; w++) {
       Serial.print("Input ");
       Serial.print(w + 1);
       Serial.println();
 
       guesses[w] = gettingInputFromColorButtons();
+      colorButtonPressed = 0;
 
       Serial.print("Guesses array: ");
       for(int w = 0; w < currentLength; w++) {
         Serial.print(guesses[w]);
         Serial.print(", ");
       }
-
-      Serial.println();
-      Serial.println();
-      delay(200); //Shold probably be deleted in final version
     }
 
     Serial.println("Comparing guess to actual sequence");
@@ -437,102 +483,39 @@ void playGame() {
 }
 
 int gettingInputFromColorButtons() {
-  while(true) {
-    delay(20);
-    buttonStateRedInput = digitalRead(redLedButton);
-    buttonStateYellowInput = digitalRead(yellowLedButton);
-    buttonStateGreenInput = digitalRead(greenLedButton);
-    buttonStateBlueInput = digitalRead(blueLedButton);
-  
-    if(lastButtonStateRedInput != buttonStateRedInput) {
-      lastButtonStateRedInput = buttonStateRedInput;
-  
-      lastButtonStateRedInput = buttonStateRedInput;
-    
-      if(lastButtonStateRedInput == false) {
-        Serial.println("Red input button pushed");
-      }
-      if(lastButtonStateRedInput == true) {
-        return 1;
-      }
-  
-    } else if(lastButtonStateYellowInput != buttonStateYellowInput) {
-      lastButtonStateYellowInput = buttonStateYellowInput;
-      
-      if(lastButtonStateYellowInput == false) {
-       Serial.println("Yellow input button pushed");
-      }
-      if(lastButtonStateYellowInput == true) {
-        return 2;
-      }
-  
-    } else if(lastButtonStateGreenInput != buttonStateGreenInput) {
-      lastButtonStateGreenInput = buttonStateGreenInput;
-      
-      if(lastButtonStateGreenInput == false) {
-       Serial.println("Green input button pushed");
-      }
-      if(lastButtonStateGreenInput == true) {
-        return 3;
-      }
-  
-    } else if(lastButtonStateBlueInput != buttonStateBlueInput) {
-      lastButtonStateBlueInput = buttonStateBlueInput;
-      if(lastButtonStateBlueInput == false) {
-       Serial.println("Blue input button pushed");
-      }
-      if(lastButtonStateBlueInput == true) {
-        return 4;
-      }
+  Serial.println("Calling analog button check");
+  while(colorButtonPressed == 0) {
+    delay(5);
+    analogButtons.check();
+    if(colorButtonPressed != 0) {
+      return colorButtonPressed;
     }
   }
 }
 
-void on_event(IOTContext ctx, IOTCallbackInfo* callbackInfo);
-#include "src/connection.h"
-
-void on_event(IOTContext ctx, IOTCallbackInfo* callbackInfo) {
-  // ConnectionStatus
-  if (strcmp(callbackInfo->eventName, "ConnectionStatus") == 0) {
-    LOG_VERBOSE("Is connected ? %s (%d)",
-                callbackInfo->statusCode == IOTC_CONNECTION_OK ? "YES" : "NO",
-                callbackInfo->statusCode);
-    isConnected = callbackInfo->statusCode == IOTC_CONNECTION_OK;
-    return;
-  }
-
-  // payload buffer doesn't have a null ending.
-  // add null ending in another buffer before print
-  AzureIOT::StringBuffer buffer;
-  if (callbackInfo->payloadLength > 0) {
-    buffer.initialize(callbackInfo->payload, callbackInfo->payloadLength);
-  }
-
-  LOG_VERBOSE("- [%s] event was received. Payload => %s\n",
-              callbackInfo->eventName, buffer.getLength() ? *buffer : "EMPTY");
-
-  if (strcmp(callbackInfo->eventName, "Command") == 0) {
-    LOG_VERBOSE("- Command name was => %s\r\n", callbackInfo->tag);
-  }
-}
-
-void ToAzure() {
+void toAzure() {
   if (isConnected) {
       float azureLength = float(currentLength);
+      Serial.println(azureLength);
       char msg[64] = {0};
       int pos = 0, errorCode = 0;
 
       if (loopId++ % 2 == 0) {  // send telemetry
-        pos = snprintf(msg, sizeof(msg) - 1, "{\"currentLength\": %f}",
+        pos = snprintf(msg, sizeof(msg) - 1, "{\"azureLength\": %f}",
                        azureLength);
         errorCode = iotc_send_telemetry(context, msg, pos);
+   
+        
+      } else {  // send property
+        
+      } 
   
       msg[pos] = 0;
 
       if (errorCode != 0) {
         LOG_ERROR("Sending message has failed with error code %d", errorCode);
       }
-    }
+    
 
     iotc_do_work(context);  // do background work for iotc
   } else {
@@ -541,69 +524,3 @@ void ToAzure() {
     connect_client(SCOPE_ID, DEVICE_ID, DEVICE_KEY);
   }
 }
-
-/*
-
-int readColorButtons() {
-  Serial.println("readColorButtons method called");
-
-  while(true) {
-    
-  }
-  
-  while(buttonStateRedInput && buttonStateYellowInput && buttonStateGreenInput && buttonStateBlueInput) {
-    buttonStateRedInput = digitalRead(redLedButton);
-    buttonStateYellowInput = digitalRead(yellowLedButton);
-    buttonStateGreenInput = digitalRead(greenLedButton);
-    buttonStateBlueInput = digitalRead(blueLedButton);
-    delay(20);
-  }
-  delay(100);
-
-  if(!buttonStateRedInput) {
-    Serial.print("Returning 1 - ");
-    Serial.println("Red button pushed");
-    return 1; 
-  } else if(!buttonStateYellowInput) {
-    Serial.println("Returning 2");
-    Serial.println("Yellow button pushed");
-    return 2;
-  } else if(!buttonStateGreenInput) {
-    Serial.println("Returning 3");
-    Serial.println("Green button pushed");
-    return 3;
-  } else if(!buttonStateBlueInput) {
-    Serial.println("Returning 4");
-    Serial.println("Blue button pushed");
-    return 4;
-  }
-}
-*/
-
-/*
-
-      for(int g; g < currentLength; g++) {
-        int currentButtonPressed = 0;
-        
-        while(digitalRead(redLedButton) && digitalRead(yellowLedButton) && digitalRead(greenLedButton) && digitalRead(blueLedButton)) {
-          delay(5);
-        }
-        if(digitalRead(redLedButton)) {
-          currentButtonPressed = 1;
-        } else if(digitalRead(yellowLedButton)) {
-          currentButtonPressed = 2;
-        } else if(digitalRead(greenLedButton)) {
-          currentButtonPressed = 3;
-        } else if(digitalRead(blueLedButton)) {
-          currentButtonPressed = 4;
-        }
-
-        if(currentButtonPressed != levels[g]) {
-          Serial.println("Wrong button pressed");
-          return;
-        }
-      }
-      currentLength++;
-  }
-}
-*/
