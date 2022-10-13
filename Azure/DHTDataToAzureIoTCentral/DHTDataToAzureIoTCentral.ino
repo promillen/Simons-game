@@ -5,6 +5,12 @@
 #include <ESP8266WiFi.h>
 #include "src/iotc/common/string_buffer.h"
 #include "src/iotc/iotc.h"
+#include "DHT.h"
+
+#define DHTPIN 2
+
+#define DHTTYPE DHT11   // DHT 11
+
 
 #define WIFI_SSID "HUAWEI P30 Pro"
 #define WIFI_PASSWORD "123456789"
@@ -12,6 +18,10 @@
 const char* SCOPE_ID = "0ne00779F00";
 const char* DEVICE_ID = "14hnv8l3ili";
 const char* DEVICE_KEY = "IpBH0ZGZ0K4xL4WrxCjexztBcKSJBtdGn0F2fh9hQLk=";
+
+
+
+DHT dht(DHTPIN, DHTTYPE);
 
 void on_event(IOTContext ctx, IOTCallbackInfo* callbackInfo);
 #include "src/connection.h"
@@ -50,13 +60,16 @@ void setup() {
   if (context != NULL) {
     lastTick = 0;  // set timer in the past to enable first telemetry a.s.a.p
   }
- 
+   dht.begin();
 }
 
 void loop() {
 
-float  sequence_length = 45;
+float sequence_length = 15;
+float h = dht.readHumidity();
+float t = dht.readTemperature();
 
+  
   if (isConnected) {
 
     unsigned long ms = millis();
